@@ -7,6 +7,7 @@
     "com.unity.purchasing": "2.0.6",
     "com.unity.timeline": "1.0.0",
     "com.unity.xr.legacyinputhelpers": "2.0.2",
+    "jp.keijiro.klak": "https://github.com/keijiro/Klak.git#upm",
     "com.unity.modules.ai": "1.0.0",
     "com.unity.modules.animation": "1.0.0",
     "com.unity.modules.assetbundle": "1.0.0",
@@ -37,5 +38,11 @@
     "com.unity.modules.vr": "1.0.0",
     "com.unity.modules.wind": "1.0.0",
     "com.unity.modules.xr": "1.0.0"
+  },
+  "lock": {
+    "jp.keijiro.klak": {
+      "hash": "998c115201969984019639126bc8d0001c79d243",
+      "revision": "upm"
+    }
   }
 }

@@ -6,7 +6,6 @@ Shader "1UP/Magic Outline/NenLit"
 {
 	Properties
 	{
-
 		[Toggle] _LDIR("Directional Light", Float) = 1.0
 		_Color("Main Color", Color) = (1,1,1,1)
 		_MainTex("Base (RGBA)", 2D) = "white" { }
