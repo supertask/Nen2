@@ -7,6 +7,7 @@ public class LifeAndDeathController : MonoBehaviour
     private Animator animator;
     private float WALK_SPEED;
     private List<GameObject> fallApartingBoneObjs;
+    private List<Transform> fallApartingBoneTransforms;
     private List<GameObject> nenObjs;
     private List<Material> nenMaterials;
 
@@ -56,11 +57,15 @@ public class LifeAndDeathController : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.K)) {
             this.FallApartObject();
         }
+        if (Input.GetKeyDown(KeyCode.L)) {
+            ComeBackObjectToLife();
+        }
     }
 
     private void SetupTarget(GameObject parent)
     {
         this.fallApartingBoneObjs = new List<GameObject>();
+        this.fallApartingBoneTransforms = new List<Transform> ();
         this.nenMaterials = new List<Material>();
         this.nenObjs = new List<GameObject>();
         foreach (Transform t in parent.GetComponentsInChildren<Transform>())
@@ -70,6 +75,10 @@ public class LifeAndDeathController : MonoBehaviour
             // Preparing to fall apart bone objects on the floor
             if (t.gameObject.GetComponent<Rigidbody>() != null) {
                 this.fallApartingBoneObjs.Add(t.gameObject);
+                GameObject tmpObj = new GameObject();
+                tmpObj.transform.position = t.gameObject.transform.position;
+                tmpObj.transform.rotation = t.gameObject.transform.rotation;
+                this.fallApartingBoneTransforms.Add(tmpObj.transform);
             }
 
             // Preparing to diable the Nen material (aura effect)
@@ -103,7 +112,6 @@ public class LifeAndDeathController : MonoBehaviour
         }
     }
 
-
     private void EnableNenMaterials(bool enableNen)
     {
         if (enableNen) {
@@ -125,10 +133,24 @@ public class LifeAndDeathController : MonoBehaviour
         }
     }
 
+    private void MoveBackToBasePosition()
+    {
+        for (int i = 0; i < this.fallApartingBoneTransforms.Count; i++) {
+            this.fallApartingBoneObjs[i].transform.position = fallApartingBoneTransforms[i].position;
+            this.fallApartingBoneObjs[i].transform.rotation = fallApartingBoneTransforms[i].rotation;
+        }
+    }
+
     public void FallApartObject()
     {
         this.EnableNenMaterials(false); //Disable Nen materials
         this.EnableKinematic(false); //Objects fall down on the floor
     }
 
+    public void ComeBackObjectToLife()
+    {
+        this.EnableNenMaterials(true); //Enable Nen materials
+        this.EnableKinematic(true); //Disable rigidbody behaviour(gravity and force)
+        this.MoveBackToBasePosition();
+    }
 }
