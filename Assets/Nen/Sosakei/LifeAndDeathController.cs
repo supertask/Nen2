@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Klak.Motion;
 
 public class LifeAndDeathController : MonoBehaviour
 {
@@ -89,21 +90,19 @@ public class LifeAndDeathController : MonoBehaviour
                 this.nenObjs.Add(t.gameObject); //Saving Nen object to use later
             }
         }
-    }
-    
 
-    /* private void AddForceAndRotation()
-    {
-        float min = 0.0f;
-        float max = 0.01f;
-
-        //なるべく同時刻に力を加える
-        for(int i = 0; i < this.target_rigidbodies.Count; i++) {
-            Vector3 direction = new Vector3(Random.Range(min, max), Random.Range(min, 3*max), Random.Range(min, max));
-            this.target_rigidbodies[i].AddForce(direction, ForceMode.Impulse);
-            this.target_rigidbodies[i].AddTorque(direction, ForceMode.Impulse);
+        //Preparing for smooth follow
+        for (int i = 0; i < this.fallApartingBoneObjs.Count; i++) {
+            SmoothFollow sf = this.fallApartingBoneObjs[i].AddComponent<SmoothFollow>();
+            sf.enabled = false;
+            sf.interpolationType = SmoothFollow.Interpolator.Exponential;
+            //sf.interpolationType = SmoothFollow.Interpolator.DampedSpring;
+            sf.positionSpeed = 5;
+            sf.rotationSpeed = 5;
+            sf.jumpAngle = 60;
+            sf.target = this.fallApartingBoneTransforms[i];
         }
-    } */
+    }
 
     private void EnableKinematic(bool isKinematic)
     {
@@ -133,11 +132,11 @@ public class LifeAndDeathController : MonoBehaviour
         }
     }
 
-    private void MoveBackToBasePosition()
+    // Move back to base position if it is enabled
+    private void EnableSmoothFollow(bool enable)
     {
         for (int i = 0; i < this.fallApartingBoneTransforms.Count; i++) {
-            this.fallApartingBoneObjs[i].transform.position = fallApartingBoneTransforms[i].position;
-            this.fallApartingBoneObjs[i].transform.rotation = fallApartingBoneTransforms[i].rotation;
+            this.fallApartingBoneObjs[i].GetComponent<SmoothFollow>().enabled = enable;
         }
     }
 
@@ -145,12 +144,13 @@ public class LifeAndDeathController : MonoBehaviour
     {
         this.EnableNenMaterials(false); //Disable Nen materials
         this.EnableKinematic(false); //Objects fall down on the floor
+        this.EnableSmoothFollow(false);
     }
 
     public void ComeBackObjectToLife()
     {
         this.EnableNenMaterials(true); //Enable Nen materials
         this.EnableKinematic(true); //Disable rigidbody behaviour(gravity and force)
-        this.MoveBackToBasePosition();
+        this.EnableSmoothFollow(true);
     }
 }
