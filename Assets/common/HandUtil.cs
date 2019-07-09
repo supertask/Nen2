@@ -13,16 +13,32 @@ public class HandUtil
 {
     public static int LEFT = 0;
     public static int RIGHT = 1;
+    private bool[] existsPreviousHands;
     private bool[] isOpenedPreviousHands;
     private bool[,] isOpenedPreviousFingers;
     private int[] handIds;
+    private Transform playerTransform;
 
-    public HandUtil() {
+
+    [Tooltip("Velocity (m/s) move toward ")]
+    public float smallestVelocity = 0.4f;
+
+    [Tooltip("Velocity (m/s) move toward ")]
+    public float deltaVelocity = 0.7f; //0.7f is default
+
+    [Tooltip("Delta degree to check 2 vectors same direction")]
+    public float handForwardDegree = 30;
+
+    public HandUtil(Transform playerTransform)
+    {
+        this.existsPreviousHands = new bool[2];
+        this.existsPreviousHands.Fill(false);
         this.isOpenedPreviousHands = new bool[2];
         this.isOpenedPreviousHands.Fill(false);
         this.isOpenedPreviousFingers = new bool[2, 6]; //thumb, index, middle, ring, pinky, unknown
         this.isOpenedPreviousFingers.Fill(false);
         this.handIds = new int[2] { HandUtil.LEFT, HandUtil.RIGHT };
+        this.playerTransform = playerTransform;
     }
 
     /*
@@ -56,7 +72,7 @@ public class HandUtil
      * Check out GrabStreangth variable of Hand class
      * https://leapmotion.github.io/UnityModules/class_leap_1_1_hand.html#ae3b86d4d13139d772be092b6838ee9b5
      */
-    public static HandStatus GetHandStatus(Hand hand)
+    private static HandStatus GetHandStatus(Hand hand)
     {
         //The strength is zero for an open hand
         if (hand.GrabStrength == 0.0f) { return HandStatus.OPEN; }
@@ -66,13 +82,18 @@ public class HandUtil
 
     /*
      * Save whether your previous hands are opened
+     * THIS IS USED FOR JustOpenedHandOn() & JustClosedHandOn()
      * @param hands Leap.Hand[] both hands
      */
     public void SavePreviousHands(Hand[] hands)
     {
-        foreach(int handId in this.handIds) {
+        foreach (int handId in this.handIds) {
             Hand hand = hands[handId];
-            if (hand != null) {
+            if (hand == null) {
+                this.existsPreviousHands[handId] = false;
+            }
+            else {
+                this.existsPreviousHands[handId] = true;
                 if (HandUtil.GetHandStatus(hand) == HandStatus.OPEN) {
                     this.isOpenedPreviousHands[handId] = true;
                 }
@@ -88,6 +109,7 @@ public class HandUtil
 
     /*
      * Save whether your previous fingers are opened
+     * THIS IS USED FOR JustOpenedFingerOn(), JustClosedFingerOn().
      * @param hands Leap.Hand[] both hands
      */
     public void SavePreviousFingers(Hand[] hands)
@@ -101,6 +123,15 @@ public class HandUtil
             }
         }
     }
+
+    /*
+    public bool JustAppearedHand(Hand[] hands, int handId) {
+        return !this.existsPreviousHands[handId] && hands[handId] != null;
+    }
+    public bool JustDisappearedHand(Hand[] hands, int handId) {
+        return this.existsPreviousHands[handId] && hands[handId] == null;
+    }
+    */
 
     /*
      * Returns whether a hand is just opened from a state of closed hand
@@ -210,13 +241,119 @@ public class HandUtil
         }
         return false; //No actioned
     }
-    
 
-    public static Vector3 GetVector3(Vector v) {
+    public Vector3 GetHandVelocity(Hand hand) {
+        return this.playerTransform.InverseTransformDirection(HandUtil.ToVector3(hand.PalmVelocity));
+    }
+
+    public bool IsMoveLeft(Hand hand) {
+        return ! this.IsHandStayed(hand) && GetHandVelocity(hand).x < -this.deltaVelocity;
+    }
+
+    public bool IsMoveRight(Hand hand) {
+        return ! this.IsHandStayed(hand) && GetHandVelocity(hand).x > this.deltaVelocity;
+    }
+
+    public bool IsMoveUp(Hand hand) {
+        return ! this.IsHandStayed(hand) && hand.PalmVelocity.y > this.deltaVelocity;
+    }
+
+    public bool IsMoveDown(Hand hand) {
+        return ! this.IsHandStayed(hand) && hand.PalmVelocity.y < -this.deltaVelocity;
+    }
+
+    public bool IsHandStayed(Hand hand) {
+        return hand.PalmVelocity.Magnitude < this.smallestVelocity;
+    }
+
+    protected bool IsAlmostOppositeDirection(Vector a, Vector b) {
+        return this.IsAlmostOppositeDirection(HandUtil.ToVector3(a), HandUtil.ToVector3(b));
+    }
+    protected bool IsAlmostOppositeDirection(Vector3 a, Vector3 b) {
+        return Vector3.Angle(a, b) > (180.0f - handForwardDegree);
+    }
+
+    protected bool IsAlmostSameDirection(Vector a, Vector b) {
+        return this.IsAlmostSameDirection(HandUtil.ToVector3(a), HandUtil.ToVector3(b));
+    }
+    protected bool IsAlmostSameDirection(Vector3 a, Vector3 b) {
+        return Vector3.Angle(a, b) < handForwardDegree;
+    }
+
+    public bool IsHandConfidence(Hand hand) {
+        return hand.Confidence > 0.5f;
+    }
+    public bool IsGrabHand(Hand hand) {
+        return hand.GrabStrength > 0.8f;
+    }
+    protected bool IsOpenHand(Hand hand) {
+        return hand.GrabStrength == 0;
+    }
+
+    protected bool IsPalmNormalSameDirectionWith(Hand hand, Vector3 dir) {
+        return this.IsAlmostSameDirection(HandUtil.ToVector3(hand.PalmNormal), dir);
+    }
+
+    protected bool IsHandMoveForward(Hand hand) {
+        return this.IsAlmostSameDirection(hand.PalmNormal, hand.PalmVelocity) && ! IsHandStayed(hand);
+    }
+
+
+    //手をたたいているか判定
+    public bool IsCrapGesture(Hand[] hands)
+    {
+        Hand leftHand = hands[HandUtil.LEFT];
+        Hand rightHand = hands[HandUtil.RIGHT];
+        if (leftHand != null & rightHand != null) {
+            if (IsOpenHand(leftHand) && IsOpenHand(rightHand)
+                && IsAlmostOppositeDirection(leftHand.PalmNormal, rightHand.PalmNormal)
+                && IsAlmostOppositeDirection(leftHand.PalmVelocity, rightHand.PalmVelocity)
+                && IsHandMoveForward(leftHand) && IsHandMoveForward(rightHand)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    //投げる動作か判定
+    public bool IsThrownGesture(Hand hand)
+    {
+        if (hand != null) {
+            if (this.IsPalmNormalSameDirectionWith (hand, HandUtil.ToVector3 (hand.PalmVelocity))
+               && !this.IsHandStayed(hand)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    //手のひらが上を向いているか判定
+    public bool IsFaceUpGesture(Hand hand)
+    {
+        if (hand != null) {
+            if (this.IsHandStayed(hand) && this.IsPalmNormalSameDirectionWith(hand, Vector3.up)) return true;
+        }
+        return false;
+    }
+
+    //手のひらが上を向いているか判定
+    public bool IsFaceDownGesture(Hand hand)
+    {
+        if (hand != null) {
+            if (this.IsHandStayed(hand) && this.IsPalmNormalSameDirectionWith(hand, Vector3.down)) return true;
+        }
+        return false;
+    }
+
+
+
+    //Leap Vector to Unity Vector3
+    public static Vector3 ToVector3(Vector v) {
         return new Vector3(v.x, v.y, v.z);
     }
-    
-    public static Quaternion GetQuaternion(LeapQuaternion q) {
+
+    //Leap Quaternion to Unity Quaternion
+    public static Quaternion ToQuaternion(LeapQuaternion q) {
         return new Quaternion(q.x, q.y, q.z, q.w);
     }
 }

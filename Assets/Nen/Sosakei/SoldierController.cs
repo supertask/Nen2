@@ -10,12 +10,16 @@ using static Leap.Finger;
 public class SoldierController : MonoBehaviour
 {
     [SerializeField] public GameObject leapProviderObj;
-    LeapServiceProvider m_Provider;
+    public Transform player;
+    public GameObject soldier;
 
+    private LeapServiceProvider m_Provider;
     private Animator animator;
     private float WALK_SPEED;
+
     private List<GameObject> fallApartingBoneObjs;
     private List<Transform> fallApartingBoneTransforms;
+
     private List<GameObject> nenObjs;
     private List<Material> nenMaterials;
     private HandUtil handUtil;
@@ -26,20 +30,26 @@ public class SoldierController : MonoBehaviour
     };
     private GameObject[,] bindingSoldierPartObjs ;
     private GameObject[,] operatingLines;
+    private bool isRevivedSoldier;
+    private Util.ButtonMashingStopper handMashingStopper;
+    private Util.Timer reviveTimer;
 
     void Start()
     {
-        this.handUtil = new HandUtil();
+        this.handUtil = new HandUtil(player);
         this.m_Provider = this.leapProviderObj.GetComponent<LeapServiceProvider>();
         this.bindingSoldierPartObjs = new GameObject[2, 5];
 
         this.animator = GetComponent<Animator>();
-        this.animator.enabled = false;
+        //this.animator.enabled = false;
         this.WALK_SPEED = 0.085f;
-        this.InitSoldier(this.gameObject);
+        this.isRevivedSoldier = true;
+        this.handMashingStopper = new Util.ButtonMashingStopper(0.12f);
+        this.reviveTimer = new Util.Timer(2.5f);
+        this.InitSoldier();
 
-        this.EnableKinematic(true); //Not to fall down objects
-        //this.FallApartObject();
+        //this.EnableKinematic(true); //Not to fall down objects
+        this.FallApartSoldier();
 
         //this.animator.Play("idle");
     }
@@ -48,13 +58,38 @@ public class SoldierController : MonoBehaviour
     {
         Frame frame = this.m_Provider.CurrentFrame;
         Hand[] hands = HandUtil.GetCorrectHands(frame); //0=LEFT, 1=RIGHT
-        if (hands[HandUtil.LEFT] !=null & hands[HandUtil.RIGHT] !=null) {
+        if (hands[HandUtil.LEFT] != null && hands[HandUtil.RIGHT] != null) {
+            /*
             this.DrawLines(hands);
-            this.ComeBackObjectToLife();
+            this.ReviveSoldier();
+
+            //Hand operations
+            //連打を防ぐタイマー
+            if (this.handMashingStopper.isOkNextButton())
+            {
+                if (this.handUtil.IsMoveRight(hands[HandUtil.LEFT])) {
+                    this.animator.enabled = true;
+                    Debug.Log("left hand: moves to RIGHT");
+                    animator.SetTrigger("attackTrigger1");
+                }
+                else if (this.handUtil.IsMoveDown(hands[HandUtil.LEFT])) {
+                    this.animator.enabled = true;
+                    Debug.Log("left hand: moves to DOWN");
+                    animator.SetTrigger("attackTrigger3");
+                }
+                else if (this.handUtil.IsMoveLeft(hands[HandUtil.RIGHT])) {
+                    this.animator.enabled = true;
+                    Debug.Log("rigth hand: moves to LEFT");
+                    animator.SetTrigger("attackTrigger2");
+                }
+            }
+            */
         }
         else {
+            /*
             this.EraseLines();
-            this.FallApartObject();
+            this.FallApartSoldier();
+            */
         }
 
         //Attack
@@ -68,6 +103,18 @@ public class SoldierController : MonoBehaviour
             animator.SetTrigger("attackTrigger3");
         }
 
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            //this.DrawLines(hands);
+            this.ReviveSoldier();
+        }
+        else if (Input.GetKeyDown(KeyCode.F))
+        {
+            //this.EraseLines();
+            this.FallApartSoldier();
+        }
+
+        /*
         //Walk
         if (Input.GetKeyDown(KeyCode.Alpha9)) {
             animator.SetFloat("Speed", WALK_SPEED);
@@ -78,39 +125,56 @@ public class SoldierController : MonoBehaviour
 
         //Change Direction
         if (Input.GetKey(KeyCode.Alpha7)) {
-            this.transform.Rotate(new Vector3(0, 0.5f, 0), Space.Self);
+            this.soldier.transform.Rotate(new Vector3(0, 0.5f, 0), Space.Self);
         }
 
         if (animator.GetFloat("Speed") > 0) {
-            Vector3 dv = this.transform.forward * animator.GetFloat("Speed");
-            this.transform.position += dv * Time.deltaTime;
+            Vector3 dv = this.soldier.transform.forward * animator.GetFloat("Speed");
+            this.soldier.transform.position += dv * Time.deltaTime;
         }
+        */
 
-        if (Input.GetKeyDown(KeyCode.K)) { }
-        if (Input.GetKeyDown(KeyCode.L)) { }
+        if (this.reviveTimer.OnTime()) {
+            Debug.Log("Finished smooth Follow");
+
+            //HERE: SmoothFollowが完了するまでanimatorスタートさせない
+            //this.SaveBoneTransforms(); //Save Bone Transforms for reiviving
+
+            //FallApartする前の状態に戻す
+            /*
+            for(int i = 0; i < this.fallApartingBoneObjs.Count;  i++) {
+                 this.fallApartingBoneObjs[i].transform.position = this.fallApartingBoneTransforms[i].position;
+                 this.fallApartingBoneObjs[i].transform.rotation = this.fallApartingBoneTransforms[i].rotation;
+            }
+            */
+            this.animator.enabled = true;
+            this.isRevivedSoldier = true;
+        }
+        this.reviveTimer.Clock();
     }
 
-    private void InitSoldier(GameObject parent)
+    private void InitSoldier()
     {
-
         //
         // Preparing for Fall Aparting objects
         //
+        GameObject root = GameObject.Find("Squelette_Lourd/Root"); //HERE: ルートに置き換えてやる
+        GameObject tmpObj = GameObject.Find("tmp");
         this.fallApartingBoneObjs = new List<GameObject>();
         this.fallApartingBoneTransforms = new List<Transform> ();
         this.nenMaterials = new List<Material>();
         this.nenObjs = new List<GameObject>();
-        foreach (Transform t in parent.GetComponentsInChildren<Transform>())
-        {
-            if (t.gameObject.name == parent.name) { continue; } //Ignore a parent
 
+        foreach (Transform t in root.GetComponentsInChildren<Transform>())
+        {
             // Preparing to fall apart bone objects on the floor
             if (t.gameObject.GetComponent<Rigidbody>() != null) {
                 this.fallApartingBoneObjs.Add(t.gameObject);
-                GameObject tmpObj = new GameObject(); //作成されてしまってる
-                tmpObj.transform.position = t.gameObject.transform.position;
-                tmpObj.transform.rotation = t.gameObject.transform.rotation;
-                this.fallApartingBoneTransforms.Add(tmpObj.transform);
+                GameObject anObj = new GameObject("tmp_" + t.gameObject.name);
+                anObj.transform.position = t.gameObject.transform.position;
+                anObj.transform.rotation = t.gameObject.transform.rotation;
+                anObj.transform.parent = tmpObj.transform;
+                this.fallApartingBoneTransforms.Add(anObj.transform);
             }
 
             // Preparing to diable the Nen material (aura effect)
@@ -168,16 +232,14 @@ public class SoldierController : MonoBehaviour
     //
     // 線を描画する
     //
-    private void DrawLines(Hand[] hands) {
-        //bindingSoldierPartObjs
-        //operatingLines
-        //hands
+    private void DrawLines(Hand[] hands)
+    {
         for (int hand_i = 0; hand_i < 2; hand_i++) {
             for (int finger_i = 0; finger_i < 5; finger_i++) {
                 LineRenderer renderer = operatingLines[hand_i, finger_i].GetComponent<LineRenderer>();
                 Vector3[] positions = new Vector3[2];
                 Finger finger = hands[hand_i].Fingers[finger_i];
-                positions[0] = HandUtil.GetVector3(finger.TipPosition); //指先の位置
+                positions[0] = HandUtil.ToVector3(finger.TipPosition); //指先の位置
                 positions[1] = bindingSoldierPartObjs[hand_i, finger_i].transform.position;
                 renderer.enabled = true;
                 renderer.SetPositions(positions);
@@ -229,22 +291,46 @@ public class SoldierController : MonoBehaviour
     // Move back to base position if it is enabled
     private void EnableSmoothFollow(bool enable)
     {
-        for (int i = 0; i < this.fallApartingBoneTransforms.Count; i++) {
+        for (int i = 0; i < this.fallApartingBoneObjs.Count; i++) {
             this.fallApartingBoneObjs[i].GetComponent<SmoothFollow>().enabled = enable;
         }
     }
+    
 
-    public void FallApartObject()
+    /*
+    public void SaveBoneTransforms()
     {
+    }
+
+    public void SaveBoneTransforms()
+    {
+    }
+    */
+
+    public void FallApartSoldier()
+    {
+        if (! this.isRevivedSoldier) { return; } //if the soldier is already fall aparted
+
+        this.animator.enabled = false; //Stop animation
+        /*
+        for(int i = 0; i < this.fallApartingBoneObjs.Count;  i++) {
+             this.fallApartingBoneTransforms[i].position = this.fallApartingBoneObjs[i].transform.position;
+             this.fallApartingBoneTransforms[i].rotation = this.fallApartingBoneObjs[i].transform.rotation;
+        }
+        */
         this.EnableNenMaterials(false); //Disable Nen materials
         this.EnableKinematic(false); //Objects fall down on the floor
         this.EnableSmoothFollow(false);
+
+        this.isRevivedSoldier = false;
     }
 
-    public void ComeBackObjectToLife()
+    public void ReviveSoldier()
     {
+        if (this.isRevivedSoldier) { return; } //if the soldier is already revived
         this.EnableNenMaterials(true); //Enable Nen materials
         this.EnableKinematic(true); //Disable rigidbody behaviour(gravity and force)
         this.EnableSmoothFollow(true);
+        this.reviveTimer.Start();
     }
 }

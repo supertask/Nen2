@@ -88,7 +88,8 @@ namespace Leap.Unity {
       _palm.position = _hand.PalmPosition.ToVector3();
     }
 
-    private Transform createRenderer(string name, Mesh mesh, float scale, Material mat) {
+    private Transform createRenderer(string name, Mesh mesh, float scale, Material mat)
+    {
       GameObject obj = new GameObject(name);
       obj.AddComponent<MeshFilter>().mesh = mesh;
       obj.AddComponent<MeshRenderer>().sharedMaterial = mat;
