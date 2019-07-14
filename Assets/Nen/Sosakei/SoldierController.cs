@@ -25,8 +25,8 @@ public class SoldierController : MonoBehaviour
     private HandUtil handUtil;
     private String[,] bindingSoldierParts = {
         //首(頭)，腕，手，膝，足
-        {"Neck","LowerArm_L", "Hand_L", "Lower_Leg_L",  "Toes_L"},
-        {"Head", "LowerArm_R", "Hand_R", "Lower_Leg_R", "Toes_R"}
+        {"Head", "LowerArm_R", "Hand_R", "Lower_Leg_R", "Toes_R"},
+        {"Neck","LowerArm_L", "Hand_L", "Lower_Leg_L",  "Toes_L"}
     };
     private GameObject[,] bindingSoldierPartObjs ;
     private GameObject[,] operatingLines;
@@ -45,7 +45,7 @@ public class SoldierController : MonoBehaviour
         this.WALK_SPEED = 0.085f;
         this.isRevivedSoldier = true;
         this.handMashingStopper = new Util.ButtonMashingStopper(0.12f);
-        this.reviveTimer = new Util.Timer(2.5f);
+        this.reviveTimer = new Util.Timer(1.5f);
         this.InitSoldier();
 
         //this.EnableKinematic(true); //Not to fall down objects
@@ -58,40 +58,78 @@ public class SoldierController : MonoBehaviour
     {
         Frame frame = this.m_Provider.CurrentFrame;
         Hand[] hands = HandUtil.GetCorrectHands(frame); //0=LEFT, 1=RIGHT
-        if (hands[HandUtil.LEFT] != null && hands[HandUtil.RIGHT] != null) {
-            /*
-            this.DrawLines(hands);
-            this.ReviveSoldier();
 
-            //Hand operations
-            //連打を防ぐタイマー
-            if (this.handMashingStopper.isOkNextButton())
+
+
+        if (hands[HandUtil.LEFT] != null && hands[HandUtil.RIGHT] != null)
+        {
+            Hand leftHand = hands[HandUtil.LEFT];
+            Hand rightHand = hands[HandUtil.RIGHT];
+            this.DrawLines(hands);
+            this.ReviveSoldier(); //一度だけ呼び出すようにしないと
+            //Debug.Log("isRevivedSoldier: " + this.isRevivedSoldier);
+
+            //ソルジャーが復活した & 連打してなければ
+            if (this.isRevivedSoldier && this.handMashingStopper.allowNextButton())
             {
-                if (this.handUtil.IsMoveRight(hands[HandUtil.LEFT])) {
+                if (this.handUtil.IsMoveRight(leftHand)) {
                     this.animator.enabled = true;
-                    Debug.Log("left hand: moves to RIGHT");
+                    animator.speed = 1.0f;
                     animator.SetTrigger("attackTrigger1");
+                    Debug.Log("left hand: moves to RIGHT");
                 }
-                else if (this.handUtil.IsMoveDown(hands[HandUtil.LEFT])) {
+                else if (this.handUtil.IsMoveDown(leftHand)) {
                     this.animator.enabled = true;
-                    Debug.Log("left hand: moves to DOWN");
+                    animator.speed = 1.0f;
                     animator.SetTrigger("attackTrigger3");
+                    Debug.Log("left hand: moves to DOWN");
                 }
-                else if (this.handUtil.IsMoveLeft(hands[HandUtil.RIGHT])) {
+                else if (this.handUtil.IsMoveLeft(rightHand)) {
                     this.animator.enabled = true;
-                    Debug.Log("rigth hand: moves to LEFT");
+                    animator.speed = 1.0f;
                     animator.SetTrigger("attackTrigger2");
+                    Debug.Log("rigth hand: moves to LEFT");
                 }
             }
-            */
+
+            //Thumb fingeris are extended
+            if (leftHand.Fingers[(int)FingerType.TYPE_THUMB].IsExtended &&
+                 rightHand.Fingers[(int)FingerType.TYPE_THUMB].IsExtended)
+            {
+                if (leftHand.Fingers[(int)FingerType.TYPE_MIDDLE].IsExtended &&
+                     rightHand.Fingers[(int)FingerType.TYPE_MIDDLE].IsExtended)
+                {
+                    //Move
+                    animator.SetFloat("Speed", WALK_SPEED);
+                    animator.speed = 1.0f;
+                    Vector3 dv = this.soldier.transform.forward * animator.GetFloat("Speed");
+                    this.soldier.transform.position += dv * Time.deltaTime;
+                }
+                else {
+                    animator.SetFloat("Speed", WALK_SPEED);
+                    animator.speed = 0.7f;
+                    Vector3 dv = this.soldier.transform.forward * animator.GetFloat("Speed") * 0.2f;
+                    this.soldier.transform.position += dv * Time.deltaTime;
+                }
+
+                //Rotate
+                float distanceL = Vector3.Distance(HandUtil.ToVector3(leftHand.PalmPosition), this.player.position);
+                float distanceR = Vector3.Distance(HandUtil.ToVector3(rightHand.PalmPosition), this.player.position);
+                float coef = 6.5f;
+                float rotatePower = - (distanceL - distanceR) * coef;
+                this.soldier.transform.Rotate(new Vector3(0, rotatePower, 0), Space.Self);
+            }
+            else {
+                animator.SetFloat("Speed", 0);
+            }
+
         }
         else {
-            /*
             this.EraseLines();
             this.FallApartSoldier();
-            */
         }
 
+        /*
         //Attack
         if (Input.GetKeyDown(KeyCode.Alpha1)) {
             animator.SetTrigger("attackTrigger1");
@@ -102,7 +140,9 @@ public class SoldierController : MonoBehaviour
         else if (Input.GetKeyDown(KeyCode.Alpha3)) {
             animator.SetTrigger("attackTrigger3");
         }
+        */
 
+        /*
         if (Input.GetKeyDown(KeyCode.R))
         {
             //this.DrawLines(hands);
@@ -113,6 +153,7 @@ public class SoldierController : MonoBehaviour
             //this.EraseLines();
             this.FallApartSoldier();
         }
+        */
 
         /*
         //Walk
@@ -134,24 +175,30 @@ public class SoldierController : MonoBehaviour
         }
         */
 
+        this.FinishRevive();
+        this.reviveTimer.Clock();
+    }
+
+    private void FinishRevive()
+    {
         if (this.reviveTimer.OnTime()) {
             Debug.Log("Finished smooth Follow");
 
             //HERE: SmoothFollowが完了するまでanimatorスタートさせない
             //this.SaveBoneTransforms(); //Save Bone Transforms for reiviving
+            this.EnableSmoothFollow(false);
 
             //FallApartする前の状態に戻す
-            /*
             for(int i = 0; i < this.fallApartingBoneObjs.Count;  i++) {
                  this.fallApartingBoneObjs[i].transform.position = this.fallApartingBoneTransforms[i].position;
                  this.fallApartingBoneObjs[i].transform.rotation = this.fallApartingBoneTransforms[i].rotation;
             }
-            */
             this.animator.enabled = true;
             this.isRevivedSoldier = true;
+            Debug.Log("FinishRevive");
         }
-        this.reviveTimer.Clock();
     }
+
 
     private void InitSoldier()
     {
@@ -312,12 +359,10 @@ public class SoldierController : MonoBehaviour
         if (! this.isRevivedSoldier) { return; } //if the soldier is already fall aparted
 
         this.animator.enabled = false; //Stop animation
-        /*
         for(int i = 0; i < this.fallApartingBoneObjs.Count;  i++) {
              this.fallApartingBoneTransforms[i].position = this.fallApartingBoneObjs[i].transform.position;
              this.fallApartingBoneTransforms[i].rotation = this.fallApartingBoneObjs[i].transform.rotation;
         }
-        */
         this.EnableNenMaterials(false); //Disable Nen materials
         this.EnableKinematic(false); //Objects fall down on the floor
         this.EnableSmoothFollow(false);
@@ -328,6 +373,7 @@ public class SoldierController : MonoBehaviour
     public void ReviveSoldier()
     {
         if (this.isRevivedSoldier) { return; } //if the soldier is already revived
+        if (this.reviveTimer.isStarted) { return; } //if the soldier is reviving (smooth following)
         this.EnableNenMaterials(true); //Enable Nen materials
         this.EnableKinematic(true); //Disable rigidbody behaviour(gravity and force)
         this.EnableSmoothFollow(true);

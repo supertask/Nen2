@@ -242,7 +242,7 @@ public class HandUtil
         return false; //No actioned
     }
 
-    public Vector3 GetHandVelocity(Hand hand) {
+    private Vector3 GetHandVelocity(Hand hand) {
         return this.playerTransform.InverseTransformDirection(HandUtil.ToVector3(hand.PalmVelocity));
     }
 
@@ -262,21 +262,21 @@ public class HandUtil
         return ! this.IsHandStayed(hand) && hand.PalmVelocity.y < -this.deltaVelocity;
     }
 
-    public bool IsHandStayed(Hand hand) {
+    private bool IsHandStayed(Hand hand) {
         return hand.PalmVelocity.Magnitude < this.smallestVelocity;
     }
 
-    protected bool IsAlmostOppositeDirection(Vector a, Vector b) {
+    private bool IsAlmostOppositeDirection(Vector a, Vector b) {
         return this.IsAlmostOppositeDirection(HandUtil.ToVector3(a), HandUtil.ToVector3(b));
     }
-    protected bool IsAlmostOppositeDirection(Vector3 a, Vector3 b) {
+    private bool IsAlmostOppositeDirection(Vector3 a, Vector3 b) {
         return Vector3.Angle(a, b) > (180.0f - handForwardDegree);
     }
 
-    protected bool IsAlmostSameDirection(Vector a, Vector b) {
+    private bool IsAlmostSameDirection(Vector a, Vector b) {
         return this.IsAlmostSameDirection(HandUtil.ToVector3(a), HandUtil.ToVector3(b));
     }
-    protected bool IsAlmostSameDirection(Vector3 a, Vector3 b) {
+    private bool IsAlmostSameDirection(Vector3 a, Vector3 b) {
         return Vector3.Angle(a, b) < handForwardDegree;
     }
 
@@ -286,15 +286,15 @@ public class HandUtil
     public bool IsGrabHand(Hand hand) {
         return hand.GrabStrength > 0.8f;
     }
-    protected bool IsOpenHand(Hand hand) {
+    public bool IsOpenHand(Hand hand) {
         return hand.GrabStrength == 0;
     }
 
-    protected bool IsPalmNormalSameDirectionWith(Hand hand, Vector3 dir) {
+    private bool IsPalmNormalSameDirectionWith(Hand hand, Vector3 dir) {
         return this.IsAlmostSameDirection(HandUtil.ToVector3(hand.PalmNormal), dir);
     }
 
-    protected bool IsHandMoveForward(Hand hand) {
+    private bool IsHandMoveForward(Hand hand) {
         return this.IsAlmostSameDirection(hand.PalmNormal, hand.PalmVelocity) && ! IsHandStayed(hand);
     }
 
@@ -336,7 +336,7 @@ public class HandUtil
         return false;
     }
 
-    //手のひらが上を向いているか判定
+    //手のひらが下を向いているか判定
     public bool IsFaceDownGesture(Hand hand)
     {
         if (hand != null) {
@@ -344,8 +344,6 @@ public class HandUtil
         }
         return false;
     }
-
-
 
     //Leap Vector to Unity Vector3
     public static Vector3 ToVector3(Vector v) {

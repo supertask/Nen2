@@ -30,14 +30,14 @@ public class Util
     {
         public float currentTime;
         public float waitingSec;
-        public bool isStart;
+        public bool isStarted;
         public Timer(float waitingSec) {
             this.currentTime = 0.0f;
             this.waitingSec = waitingSec;
-            this.isStart = false;
+            this.isStarted = false;
         }
         public bool OnTime() {
-            if (this.isStart) {
+            if (this.isStarted) {
                 if (this.currentTime > this.waitingSec) {
                     this.Reset();
                     return true; //設定した時刻が来れば，true
@@ -47,12 +47,13 @@ public class Util
             else { return false; }
         }
         public void Start() {
+            if (this.isStarted) { return;  } //既にスタートしている場合
             this.currentTime = 0.0f;
-            this.isStart = true;
+            this.isStarted = true;
         }
         public void Reset() {
             this.currentTime = 0.0f;
-            this.isStart = false;
+            this.isStarted = false;
         }
         public void Clock() {
             this.currentTime += Time.deltaTime;
@@ -69,7 +70,7 @@ public class Util
             this.currentTime = 0.0f;
             this.waitingSec = waitingSec;
         }
-        public bool isOkNextButton() {
+        public bool allowNextButton() {
             if (currentTime > this.waitingSec) {
                 this.Reset();
                 this.Clock();
@@ -96,8 +97,8 @@ public class Util
 
         public bool OnTime()
         {
-            if (timeleft <= 0.0f) {
-                timeleft = this.waitingSec;
+            if (this.timeleft <= 0.0f) {
+                this.timeleft = this.waitingSec;
                 return true;
             }
             else {
@@ -105,7 +106,7 @@ public class Util
             }
         }
         public void Clock() {
-            timeleft -= Time.deltaTime;
+            this.timeleft -= Time.deltaTime;
         }
     }
 }
