@@ -8,7 +8,7 @@ Nen is one of the defining features of the manga Hunter × Hunter by Yoshihiro T
 
 
 ## Acknowledgements
-
+- keijiro/SpektrLightning - https://github.com/keijiro/SpektrLightning
 
 ## License
 GNU General Public License v3.0
